@@ -1,3 +1,35 @@
+<#
+.Synopsis
+ This script will create CM collections with 3 queries, and move them into a specified folder.
+
+.Description
+This script will create CM collections with 3 queries - servers, NetBIOSName and ComputersOU. It populates the variables/parameters through a cvs file import. The cvs file should be formatted as follows:
+
+CSV Headers:
+ADSite,SiteCode,CollName,SystemOU,SiteAdminGrp
+
+Example Data:
+PH-Lapu05e,PET-,PH-Lapu05e-SEC,corp.contoso.com/contoso/GR/APAC/PH-Lapu/Computers,PH Admins 
+ 
+Logs to: C:\Temp\CollectionScript.log
+Transcript file: C:\Temp\CollectionScript_transcript.log
+
+.Example
+From a ConfigMgr admin PowerShell session (or PS inside the CM console)
+.\New-CollectionsFromCsv.ps1 -CsvPath .\sites.csv -LimitingCollectionId 'CEA013D0'
+Full path script run:
+& 'C:\scripts\sccm ps\collections\createnewcollections.ps1' -csvpath "C:\scripts\sccm ps\collections\newcollections1.csv" -LimitingCollectionId 'CEA013D0'
+ 
+.PARAMETER InputFile
+ The CSV stores all the required values, except for the limiting collection ID, target folder path (path to CM collection folder) and logfile+transcription file - change as needed.
+
+.Notes
+ Created on:  03/05/2025
+ Created by:  TS
+ Filename:    New-CMCollection_logging.ps1
+ Version:     1.0
+#>
+
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
@@ -31,22 +63,6 @@ param(
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
     [string]$LogPath = 'C:\Temp\CMCollectionScript.log',
-
-    # --- Defaults kept but not used directly below; we rebuild queries per CSV row for clarity ---
-    [Parameter(Mandatory = $false)]
-    [string]$Query1 = @"
-select SMS_R_SYSTEM.ResourceID,SMS_R_SYSTEM.ResourceType,SMS_R_SYSTEM.Name,SMS_R_SYSTEM.SMSUniqueIdentifier,SMS_R_SYSTEM.ResourceDomainORWorkgroup,SMS_R_SYSTEM.Client from SMS_R_System inner join SMS_G_System_LOCAL_ADMINS on SMS_G_System_LOCAL_ADMINS.ResourceID = SMS_R_System.ResourceId inner join SMS_G_System_SYSTEM on SMS_G_System_SYSTEM.ResourceID = SMS_R_System.ResourceId where SMS_R_System.ADSiteName = '$ADSite' and SMS_G_System_SYSTEM.SystemRole = 'Server' and SMS_G_System_LOCAL_ADMINS.AccountName like '%Win32_Group.Domain=\"CORPLEAR\",Name=\"$SiteAdminGrp\"%'
-"@,
-
-    [Parameter(Mandatory = $false)]
-    [string]$Query2 = @"
-select SMS_R_SYSTEM.ResourceID,SMS_R_SYSTEM.ResourceType,SMS_R_SYSTEM.Name,SMS_R_SYSTEM.SMSUniqueIdentifier,SMS_R_SYSTEM.ResourceDomainORWorkgroup,SMS_R_SYSTEM.Client from SMS_R_System where SMS_R_System.NetbiosName like '$SiteCode'
-"@,
-
-    [Parameter(Mandatory = $false)]
-    [string]$Query3 = @"
-select SMS_R_SYSTEM.ResourceID,SMS_R_SYSTEM.ResourceType,SMS_R_SYSTEM.Name,SMS_R_SYSTEM.SMSUniqueIdentifier,SMS_R_SYSTEM.ResourceDomainORWorkgroup,SMS_R_SYSTEM.Client from SMS_R_System where SMS_R_System.SystemOUName = '$SystemOU'
-"@,
 
     # Rule names (must be unique within the collection)
     [Parameter(Mandatory = $false)]
@@ -224,7 +240,7 @@ from SMS_R_System where SMS_R_System.SystemOUName = "$rowSystemOU"
     Write-Log "Rule '$RuleName3' added."
     
     # Set Target Folder Path
-    $TargetFolderPath = "LEA:\DeviceCollection\Lear Security"  # Folder path under the Device Collections node
+    $TargetFolderPath = "CEA:\DeviceCollection\Lear Security"  # Folder path under the Device Collections node
     Write-Log "Target folder path set to '$TargetFolderPath'."
 
     # Get the collection and move it
@@ -236,4 +252,5 @@ from SMS_R_System where SMS_R_System.SystemOUName = "$rowSystemOU"
 }
 
 Write-Log "Script completed."
+
 try { Stop-Transcript | Out-Null } catch {}
